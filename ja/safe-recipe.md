@@ -1,7 +1,6 @@
 # 自己クロス only 安全運用レシピ
 
-> **検証済み setting**: USDT 保全 + 取引量維持を同時達成する保守的な運用。
-> **検証期間**: 2026-04-25 ~ 04-26 canary 11h (USDT $642 → $658.88、+$16.88 保全)。
+> **検証済み setting**: USDT 保全 + 取引量維持を同時達成する保守的な運用。内部検証で安定性を確認済み。
 
 ---
 
@@ -29,7 +28,6 @@
     "thresholdsOverride": { "inventorySkewRatio": 1 }
   },
   "engineConfig": {
-    "symbol": "IUPUSDT",
     "tickIntervalMs": 240000,
     "bestPairSize": 350,
     "ladder": {
@@ -49,6 +47,8 @@
 }
 ```
 
+> `bestPairSize` / `baseOrderSize` は取引所の minNotional ($1 USDT) を通過するよう現在の mid で調整。
+
 ### 主要パラメータ説明
 
 | パラメータ | 値 | 理由 |
@@ -57,52 +57,32 @@
 | `targetPrice.price` | 現在の mid | ladder が mid の両側に狭く形成 |
 | `tolerancePct` | 5 | mid ±5% 範囲内のみで活動 |
 | `tickIntervalMs` | 240000 (240s) | cycle 頻度を半分に → fee コスト半減 → リスク半減 |
-| `bestPairSize` / `baseOrderSize` | 350 | mid $0.0036 で $1.26 (minNotional $1 通過) |
 | `baseSpreadPct` | 0.003 (0.3%) | bid/ask 十分に分離 |
-| `inventorySkewRatio` | 1 | 開始時の IUP 偏り残高による即時 trip 防止 |
+| `inventorySkewRatio` | 1 | 開始時の資産偏り残高による即時 trip 防止 |
 
 ---
 
-## 3. メカニズム (canary 11h 観測検証)
+## 3. メカニズム
 
 ボットは市場の流れに応じて自動的にバランス:
 
-- **mid 下落フロー** (-1~-5%):
+- **mid 下落フロー**:
   - 外部の売り手が私たちの ladder の bid 側 (mid 上) を hit
-  - 私たち: IUP 購入、USDT 一時的に支出 (短期 -)
-  - 例: 9h 時点で -$3.15 短期損失
+  - 私たち: ベース資産購入、USDT 一時的に支出 (短期 -)
 
-- **mid 回復フロー** (+1~+2.5%):
+- **mid 回復フロー**:
   - 外部の買い手が私たちの ladder の ask 側 (mid 下) を hit
-  - 私たち: IUP 売却、USDT 回収 (+)
-  - 例: 10h 時点で +$3.32 回復
+  - 私たち: ベース資産売却、USDT 回収 (+)
 
-- **mid 横ばい** (±0.5%):
+- **mid 横ばい**:
   - self-cross のみ稼働、自己クロス fee がわずかに差し引かれる
   - USDT 変化ほぼ 0 (中立)
 
-→ 市場が横ばい/弱変動の環境では、**自己クロス fee + spread 抽出で net positive**。
+→ 市場が横ばい/弱変動の環境では、**自己クロス fee + spread 抽出で net positive** が可能。
 
 ---
 
-## 4. canary 11h 検証結果
-
-| 時点 | mid 変化 | USDT (開始 $642 比) |
-|---|---|---|
-| 1h | 安定 | **+$18.10** (外部買い吸収) |
-| 3h (peak) | +0.08% | **+$19.52** ⬆ |
-| 6h | -4.89% 累積 | +$6.28 |
-| 8h | (240s tick 適用) | +$6.25 |
-| 9h 🚨 | -1.45% | **-$3.15** (短期 alarm) |
-| 10h | +2.55% 回復 | +$3.32 |
-| 11h | -5.76% 変動 | +$1.27 |
-| **stop** | (mid 回復) | **+$16.88 最終** ✅ |
-
-**6 時間中 NORMAL 100%、breaker trip 0、市場変動を吸収しつつ資本回収完了。**
-
----
-
-## 5. アラーム基準 (このレシピ適用時)
+## 4. アラーム基準 (このレシピ適用時)
 
 | アラーム | 基準 | 対応 |
 |---|---|---|
@@ -112,7 +92,7 @@
 
 ---
 
-## 6. 変形オプション (必要時)
+## 5. 変形オプション (必要時)
 
 | 状況 | 調整 |
 |---|---|
@@ -123,8 +103,8 @@
 
 ---
 
-## 7. 次のステップ
+## 6. 次のステップ
 
 - ボット安定運用確認 (6h+) → 他の coin / capital tier に拡張
 - 市場の買い登場 → climb モード検討 ([market-analysis.md](./market-analysis.md))
-- 事故発生 → [incident-2026-04-24.md](./incident-2026-04-24.md) 参照
+- 一般運用 → [operation-guide.md](./operation-guide.md)

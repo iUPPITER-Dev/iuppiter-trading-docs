@@ -118,4 +118,3 @@ T-L → main wallet via `internalTransfer` or external withdrawal. If IUP is spl
 
 - [safe-recipe.md](./safe-recipe.md) — Self-cross only safe setting (verified recipe)
 - [market-analysis.md](./market-analysis.md) — Market flow 4-indicator analysis
-- [incident-2026-04-24.md](./incident-2026-04-24.md) — Incident retrospective + asymmetric defense narrative

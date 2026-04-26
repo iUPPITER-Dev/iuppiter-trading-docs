@@ -63,22 +63,24 @@
 
 ## 3. 측정 방법 (Node 스크립트 예시)
 
+> 거래소 API 엔드포인트는 일반적인 MEXC spot REST 형식입니다. 사용 중인 심볼로 교체해서 사용하세요.
+
 ### 3.1 Orderbook depth (매도벽 + 매수 매물대)
 
 ```javascript
-const r = await fetch('https://api.mexc.com/api/v3/depth?symbol=IUPUSDT&limit=5000')
+const SYMBOL = 'YOURSYMBOLUSDT'
+const r = await fetch(`https://api.mexc.com/api/v3/depth?symbol=${SYMBOL}&limit=5000`)
 const ob = await r.json()
 const bid = parseFloat(ob.bids[0][0]), ask = parseFloat(ob.asks[0][0])
 const mid = (bid + ask) / 2
 
-// 매도벽: $0.005 까지 누적
+const TARGET_PRICE = mid * 1.25  // 예: +25%
 let askUsdt = 0
 for (const [p, q] of ob.asks) {
   const price = parseFloat(p), qty = parseFloat(q)
-  if (price <= 0.005) askUsdt += price * qty
+  if (price <= TARGET_PRICE) askUsdt += price * qty
 }
 
-// 매수 매물대: mid 아래 누적
 let bidUsdt = 0
 for (const [p, q] of ob.bids) {
   bidUsdt += parseFloat(p) * parseFloat(q)
@@ -89,12 +91,13 @@ console.log(`mid=${mid} askWall=$${askUsdt.toFixed(0)} bidDepth=$${bidUsdt.toFix
 ### 3.2 24h flow score + 거래 빈도
 
 ```javascript
+const SYMBOL = 'YOURSYMBOLUSDT'
 const tEnd = Date.now()
 const tStart = tEnd - 24 * 60 * 60_000
 let buyUsdt = 0, sellUsdt = 0, count = 0
 let cursor = tStart
 while (cursor < tEnd) {
-  const r = await fetch(`https://api.mexc.com/api/v3/aggTrades?symbol=IUPUSDT&startTime=${cursor}&endTime=${cursor + 60*60_000}&limit=1000`)
+  const r = await fetch(`https://api.mexc.com/api/v3/aggTrades?symbol=${SYMBOL}&startTime=${cursor}&endTime=${cursor + 60*60_000}&limit=1000`)
   const trades = await r.json()
   if (Array.isArray(trades)) for (const t of trades) {
     const usdt = parseFloat(t.p) * parseFloat(t.q)
@@ -124,27 +127,7 @@ console.log(`24h: buy=$${buyUsdt.toFixed(0)} sell=$${sellUsdt.toFixed(0)} flow=$
 
 ---
 
-## 5. 사례: 2026-04-25 IUPUSDT
-
-**측정 결과 (canary 봇 가동 전):**
-- 24h flow score: **-0.81** (매수 $87 / 매도 $853, 강한 매도 우세)
-- 매도벽 ($0.005 까지): **$2,792** (우리 USDT $640 으로 통과 불가)
-- 매수 매물대 (mid 아래): **$138** (매우 얇음)
-- 거래 빈도: **16.6/h** (낮음)
-
-**판단**: 위 표의 `flow < -0.5` → **자전거래 only + tickInterval 240s** 적용.
-
-**결과 (11h 운영)**:
-- USDT $642 → $658.88 (**+$16.88, +2.63%**)
-- mid -4.89% 큰 변동 흡수
-- 시장 quoteVolume $1,253 → $1,441 (활성도 ↑)
-- 봇이 시장 변동을 흡수하면서 USDT 보존 + 거래량 유지
-
-→ 시장 흐름 분석 → 보수적 setting 선택 → 안정 운영의 정석 사례.
-
----
-
-## 6. 분석 자동화 (선택)
+## 5. 분석 자동화 (선택)
 
 매시간 4 지표 자동 측정 + Slack/Telegram 알람:
 - flow score < -0.5 변경 시 알람

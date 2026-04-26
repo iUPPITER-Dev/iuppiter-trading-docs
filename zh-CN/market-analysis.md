@@ -63,22 +63,24 @@
 
 ## 3. 测量方法 (Node 脚本示例)
 
+> 交易所 API 使用通用 MEXC spot REST 端点。将 `SYMBOL` 替换为您运营的交易对。
+
 ### 3.1 Orderbook depth (卖墙 + 买方流动性)
 
 ```javascript
-const r = await fetch('https://api.mexc.com/api/v3/depth?symbol=IUPUSDT&limit=5000')
+const SYMBOL = 'YOURSYMBOLUSDT'
+const r = await fetch(`https://api.mexc.com/api/v3/depth?symbol=${SYMBOL}&limit=5000`)
 const ob = await r.json()
 const bid = parseFloat(ob.bids[0][0]), ask = parseFloat(ob.asks[0][0])
 const mid = (bid + ask) / 2
 
-// 卖墙: 至 $0.005 的累积
+const TARGET_PRICE = mid * 1.25  // 例: +25%
 let askUsdt = 0
 for (const [p, q] of ob.asks) {
   const price = parseFloat(p), qty = parseFloat(q)
-  if (price <= 0.005) askUsdt += price * qty
+  if (price <= TARGET_PRICE) askUsdt += price * qty
 }
 
-// 买方流动性: mid 下方累积
 let bidUsdt = 0
 for (const [p, q] of ob.bids) {
   bidUsdt += parseFloat(p) * parseFloat(q)
@@ -89,12 +91,13 @@ console.log(`mid=${mid} askWall=$${askUsdt.toFixed(0)} bidDepth=$${bidUsdt.toFix
 ### 3.2 24h flow score + 交易频率
 
 ```javascript
+const SYMBOL = 'YOURSYMBOLUSDT'
 const tEnd = Date.now()
 const tStart = tEnd - 24 * 60 * 60_000
 let buyUsdt = 0, sellUsdt = 0, count = 0
 let cursor = tStart
 while (cursor < tEnd) {
-  const r = await fetch(`https://api.mexc.com/api/v3/aggTrades?symbol=IUPUSDT&startTime=${cursor}&endTime=${cursor + 60*60_000}&limit=1000`)
+  const r = await fetch(`https://api.mexc.com/api/v3/aggTrades?symbol=${SYMBOL}&startTime=${cursor}&endTime=${cursor + 60*60_000}&limit=1000`)
   const trades = await r.json()
   if (Array.isArray(trades)) for (const t of trades) {
     const usdt = parseFloat(t.p) * parseFloat(t.q)
@@ -124,27 +127,7 @@ console.log(`24h: buy=$${buyUsdt.toFixed(0)} sell=$${sellUsdt.toFixed(0)} flow=$
 
 ---
 
-## 5. 案例: 2026-04-25 IUPUSDT
-
-**测量结果 (canary 机器人启动前):**
-- 24h flow score: **-0.81** (买入 $87 / 抛售 $853,强烈卖压)
-- 卖墙 (至 $0.005): **$2,792** (我们 USDT $640 无法穿越)
-- 买方流动性 (mid 下): **$138** (非常薄)
-- 交易频率: **16.6/h** (低)
-
-**判断**: 上表的 `flow < -0.5` → **自交易 only + tickInterval 240s** 应用。
-
-**结果 (11h 运营)**:
-- USDT $642 → $658.88 (**+$16.88,+2.63%**)
-- 吸收 mid -4.89% 大波动
-- 市场 quoteVolume $1,253 → $1,441 (活跃度 ↑)
-- 机器人吸收市场波动同时保护 USDT + 维持交易量
-
-→ 市场流向分析 → 保守 setting 选择 → 稳定运营的标准案例。
-
----
-
-## 6. 分析自动化 (可选)
+## 5. 分析自动化 (可选)
 
 每小时 4 指标自动测量 + Slack/Telegram 警报:
 - flow score < -0.5 变化时警报

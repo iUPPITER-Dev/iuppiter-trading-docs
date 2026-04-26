@@ -63,22 +63,24 @@
 
 ## 3. 測定方法 (Node スクリプト例)
 
+> 取引所 API は一般的な MEXC spot REST 形式です。`SYMBOL` を運用する銘柄に置き換えて使用。
+
 ### 3.1 Orderbook depth (売り壁 + 買い厚み)
 
 ```javascript
-const r = await fetch('https://api.mexc.com/api/v3/depth?symbol=IUPUSDT&limit=5000')
+const SYMBOL = 'YOURSYMBOLUSDT'
+const r = await fetch(`https://api.mexc.com/api/v3/depth?symbol=${SYMBOL}&limit=5000`)
 const ob = await r.json()
 const bid = parseFloat(ob.bids[0][0]), ask = parseFloat(ob.asks[0][0])
 const mid = (bid + ask) / 2
 
-// 売り壁: $0.005 までの累積
+const TARGET_PRICE = mid * 1.25  // 例: +25%
 let askUsdt = 0
 for (const [p, q] of ob.asks) {
   const price = parseFloat(p), qty = parseFloat(q)
-  if (price <= 0.005) askUsdt += price * qty
+  if (price <= TARGET_PRICE) askUsdt += price * qty
 }
 
-// 買い厚み: mid 下の累積
 let bidUsdt = 0
 for (const [p, q] of ob.bids) {
   bidUsdt += parseFloat(p) * parseFloat(q)
@@ -89,12 +91,13 @@ console.log(`mid=${mid} askWall=$${askUsdt.toFixed(0)} bidDepth=$${bidUsdt.toFix
 ### 3.2 24h flow score + 取引頻度
 
 ```javascript
+const SYMBOL = 'YOURSYMBOLUSDT'
 const tEnd = Date.now()
 const tStart = tEnd - 24 * 60 * 60_000
 let buyUsdt = 0, sellUsdt = 0, count = 0
 let cursor = tStart
 while (cursor < tEnd) {
-  const r = await fetch(`https://api.mexc.com/api/v3/aggTrades?symbol=IUPUSDT&startTime=${cursor}&endTime=${cursor + 60*60_000}&limit=1000`)
+  const r = await fetch(`https://api.mexc.com/api/v3/aggTrades?symbol=${SYMBOL}&startTime=${cursor}&endTime=${cursor + 60*60_000}&limit=1000`)
   const trades = await r.json()
   if (Array.isArray(trades)) for (const t of trades) {
     const usdt = parseFloat(t.p) * parseFloat(t.q)
@@ -124,27 +127,7 @@ console.log(`24h: buy=$${buyUsdt.toFixed(0)} sell=$${sellUsdt.toFixed(0)} flow=$
 
 ---
 
-## 5. 事例: 2026-04-25 IUPUSDT
-
-**測定結果 (canary ボット起動前):**
-- 24h flow score: **-0.81** (買い $87 / 売り $853、強い売り優勢)
-- 売り壁 ($0.005 まで): **$2,792** (私たち USDT $640 で通過不可)
-- 買い厚み (mid 下): **$138** (非常に薄い)
-- 取引頻度: **16.6/h** (低い)
-
-**判断**: 上記表の `flow < -0.5` → **自己クロス only + tickInterval 240s** 適用。
-
-**結果 (11h 運用)**:
-- USDT $642 → $658.88 (**+$16.88、+2.63%**)
-- mid -4.89% 大変動を吸収
-- 市場 quoteVolume $1,253 → $1,441 (活性度 ↑)
-- ボットが市場変動を吸収しつつ USDT 保全 + 取引量維持
-
-→ 市場フロー分析 → 保守的 setting 選択 → 安定運用の正解事例。
-
----
-
-## 6. 分析自動化 (任意)
+## 5. 分析自動化 (任意)
 
 毎時 4 指標自動測定 + Slack/Telegram アラーム:
 - flow score < -0.5 変化時アラーム

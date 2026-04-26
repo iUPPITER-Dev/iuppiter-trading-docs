@@ -118,4 +118,3 @@ T-L → 메인 지갑으로 `internalTransfer` 또는 외부 출금. 단 IUP 가
 
 - [safe-recipe.md](./safe-recipe.md) — 자전거래 only 안전 setting (검증된 레시피)
 - [market-analysis.md](./market-analysis.md) — 시장 흐름 4 지표 분석
-- [incident-2026-04-24.md](./incident-2026-04-24.md) — 사고 회고 + 비대칭 방어 narrative

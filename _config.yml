@@ -1,5 +1,5 @@
 title: IUPPITER Trading Docs
-description: Operational documentation for IUPPITER MEXC Volume-MM bot — safe recipes, market analysis, incident retrospectives.
+description: Operational documentation for IUPPITER Volume-MM bot — safe recipes and market analysis.
 theme: jekyll-theme-cayman
 plugins:
   - jekyll-relative-links

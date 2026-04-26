@@ -1,7 +1,6 @@
 # 自交易 only 安全运营配方
 
-> **验证过的 setting**: 同时实现 USDT 保护 + 交易量维持的保守运营。
-> **验证期间**: 2026-04-25 ~ 04-26 canary 11h (USDT $642 → $658.88,+$16.88 保护)。
+> **验证过的 setting**: 同时实现 USDT 保护 + 交易量维持的保守运营。已通过内部验证确认稳定性。
 
 ---
 
@@ -29,7 +28,6 @@
     "thresholdsOverride": { "inventorySkewRatio": 1 }
   },
   "engineConfig": {
-    "symbol": "IUPUSDT",
     "tickIntervalMs": 240000,
     "bestPairSize": 350,
     "ladder": {
@@ -49,6 +47,8 @@
 }
 ```
 
+> 设置 `bestPairSize` / `baseOrderSize` 使其满足交易所 minNotional ($1 USDT),按当前 mid 调整。
+
 ### 主要参数说明
 
 | 参数 | 值 | 理由 |
@@ -57,52 +57,32 @@
 | `targetPrice.price` | 当前 mid | ladder 在 mid 两侧紧密形成 |
 | `tolerancePct` | 5 | 仅在 mid ±5% 内活动 |
 | `tickIntervalMs` | 240000 (240s) | cycle 频率减半 → fee 成本减半 → 风险减半 |
-| `bestPairSize` / `baseOrderSize` | 350 | mid $0.0036 时 $1.26 (满足 minNotional $1) |
 | `baseSpreadPct` | 0.003 (0.3%) | bid/ask 充分分离 |
-| `inventorySkewRatio` | 1 | 防止初始 IUP 偏向余额引起的即时 trip |
+| `inventorySkewRatio` | 1 | 防止初始资产偏向余额引起的即时 trip |
 
 ---
 
-## 3. 机制 (canary 11h 观察验证)
+## 3. 机制
 
 机器人根据市场流向自动平衡:
 
-- **mid 下跌流向** (-1~-5%):
+- **mid 下跌流向**:
   - 外部卖家击中我们 ladder 的 bid 侧 (mid 上方)
-  - 我们: 买入 IUP,USDT 暂时支出 (短期 -)
-  - 例: 9h 时点 -$3.15 短期损失
+  - 我们: 买入基础资产,USDT 暂时支出 (短期 -)
 
-- **mid 恢复流向** (+1~+2.5%):
+- **mid 恢复流向**:
   - 外部买家击中我们 ladder 的 ask 侧 (mid 下方)
-  - 我们: 卖出 IUP,USDT 回收 (+)
-  - 例: 10h 时点 +$3.32 恢复
+  - 我们: 卖出基础资产,USDT 回收 (+)
 
-- **mid 横盘** (±0.5%):
+- **mid 横盘**:
   - 仅 self-cross 工作,自交易 fee 略微扣除
   - USDT 变化几乎为 0 (中性)
 
-→ 在横盘/弱波动环境下,**自交易 fee + spread 抽取 net positive**。
+→ 在横盘/弱波动环境下,**自交易 fee + spread 抽取可 net positive**。
 
 ---
 
-## 4. canary 11h 验证结果
-
-| 时点 | mid 变化 | USDT (起始 $642 比) |
-|---|---|---|
-| 1h | 稳定 | **+$18.10** (吸收外部买入) |
-| 3h (peak) | +0.08% | **+$19.52** ⬆ |
-| 6h | -4.89% 累积 | +$6.28 |
-| 8h | (240s tick 应用) | +$6.25 |
-| 9h 🚨 | -1.45% | **-$3.15** (短期 alarm) |
-| 10h | +2.55% 恢复 | +$3.32 |
-| 11h | -5.76% 波动 | +$1.27 |
-| **stop** | (mid 恢复) | **+$16.88 最终** ✅ |
-
-**6 小时间 NORMAL 100%,breaker trip 0,吸收市场波动,资本回收完成。**
-
----
-
-## 5. 警报标准 (此配方应用时)
+## 4. 警报标准 (此配方应用时)
 
 | 警报 | 标准 | 处理 |
 |---|---|---|
@@ -112,7 +92,7 @@
 
 ---
 
-## 6. 变形选项 (必要时)
+## 5. 变形选项 (必要时)
 
 | 状况 | 调整 |
 |---|---|
@@ -123,8 +103,8 @@
 
 ---
 
-## 7. 下一步
+## 6. 下一步
 
 - 确认机器人稳定运营 (6h+) → 扩展到其他 coin / capital tier
 - 市场买入登场 → 考虑 climb 模式 ([market-analysis.md](./market-analysis.md))
-- 事故发生 → 参考 [incident-2026-04-24.md](./incident-2026-04-24.md)
+- 一般运营 → [operation-guide.md](./operation-guide.md)

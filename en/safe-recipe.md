@@ -1,7 +1,6 @@
 # Self-Cross Only Safe Operating Recipe
 
-> **Verified setting**: Achieves USDT preservation + volume maintenance simultaneously through conservative operation.
-> **Verification window**: 2026-04-25 ~ 04-26 canary, 11h (USDT $642 → $658.88, +$16.88 preserved).
+> **Verified setting**: Achieves USDT preservation + volume maintenance simultaneously through conservative operation. Stability confirmed through internal verification.
 
 ---
 
@@ -29,7 +28,6 @@ Apply this recipe **at startup** if any of the following holds:
     "thresholdsOverride": { "inventorySkewRatio": 1 }
   },
   "engineConfig": {
-    "symbol": "IUPUSDT",
     "tickIntervalMs": 240000,
     "bestPairSize": 350,
     "ladder": {
@@ -49,6 +47,8 @@ Apply this recipe **at startup** if any of the following holds:
 }
 ```
 
+> Set `bestPairSize` / `baseOrderSize` so that `size × current mid` clears the exchange minNotional ($1 USDT).
+
 ### Key Parameter Rationale
 
 | Parameter | Value | Reason |
@@ -57,52 +57,32 @@ Apply this recipe **at startup** if any of the following holds:
 | `targetPrice.price` | current mid | Ladder forms tightly around mid |
 | `tolerancePct` | 5 | Activity confined to mid ±5% |
 | `tickIntervalMs` | 240000 (240s) | Half-frequency cycle → half fee cost → half risk |
-| `bestPairSize` / `baseOrderSize` | 350 | At mid $0.0036 → $1.26 (clears $1 minNotional) |
 | `baseSpreadPct` | 0.003 (0.3%) | Sufficient bid/ask separation |
-| `inventorySkewRatio` | 1 | Prevents instant trip from initial IUP-skewed balance |
+| `inventorySkewRatio` | 1 | Prevents instant trip from initial asset-skewed balance |
 
 ---
 
-## 3. Mechanism (Verified by 11h Canary Observation)
+## 3. Mechanism
 
 The bot self-balances based on market direction:
 
-- **Mid drops** (-1~-5%):
+- **Mid drops**:
   - External sellers hit our bid-side ladder (above mid)
-  - We: buy IUP, spend USDT temporarily (-)
-  - Example: at 9h mark, -$3.15 short-term loss
+  - We: buy base asset, spend USDT temporarily (-)
 
-- **Mid recovers** (+1~+2.5%):
+- **Mid recovers**:
   - External buyers hit our ask-side ladder (below mid)
-  - We: sell IUP, recoup USDT (+)
-  - Example: at 10h mark, +$3.32 recovery
+  - We: sell base asset, recoup USDT (+)
 
-- **Mid sideways** (±0.5%):
+- **Mid sideways**:
   - Only self-cross runs, slight fee deduction
   - USDT change ~0 (neutral)
 
-→ In sideways/light-volatility markets, **self-cross fees + spread extraction net positive**.
+→ In sideways/light-volatility markets, **self-cross fees + spread extraction can net positive**.
 
 ---
 
-## 4. Canary 11h Verification Results
-
-| Time | Mid change | USDT (vs start $642) |
-|---|---|---|
-| 1h | stable | **+$18.10** (absorbed external buying) |
-| 3h (peak) | +0.08% | **+$19.52** ⬆ |
-| 6h | -4.89% cumulative | +$6.28 |
-| 8h | (240s tick applied) | +$6.25 |
-| 9h 🚨 | -1.45% | **-$3.15** (short-term alarm) |
-| 10h | +2.55% recovery | +$3.32 |
-| 11h | -5.76% volatile | +$1.27 |
-| **stop** | (mid recovered) | **+$16.88 final** ✅ |
-
-**Over 6h: NORMAL 100%, breaker trips 0, absorbed market volatility, capital recovered.**
-
----
-
-## 5. Alarm Thresholds (For This Recipe)
+## 4. Alarm Thresholds (For This Recipe)
 
 | Alarm | Threshold | Action |
 |---|---|---|
@@ -112,7 +92,7 @@ The bot self-balances based on market direction:
 
 ---
 
-## 6. Variant Options (When Needed)
+## 5. Variant Options (When Needed)
 
 | Situation | Adjustment |
 |---|---|
@@ -123,8 +103,8 @@ The bot self-balances based on market direction:
 
 ---
 
-## 7. Next Steps
+## 6. Next Steps
 
 - Confirm stability (6h+) → expand to other coins / capital tiers
 - Buy pressure detected → consider climb mode ([market-analysis.md](./market-analysis.md))
-- On incident → see [incident-2026-04-24.md](./incident-2026-04-24.md)
+- General operations → [operation-guide.md](./operation-guide.md)

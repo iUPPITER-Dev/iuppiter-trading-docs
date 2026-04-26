@@ -1,0 +1,15 @@
+# Jekyll build output
+_site/
+.jekyll-cache/
+.jekyll-metadata
+Gemfile.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*~
